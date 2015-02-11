@@ -6,7 +6,7 @@ import java.lang.reflect.Modifier;
 import java.util.Collection;
 
 import lombok.AccessLevel;
-import lombok.FieldConstants;
+import lombok.FieldNameConstants;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
 import lombok.javac.JavacAnnotationHandler;
@@ -24,12 +24,12 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 
-@ProviderFor(JavacAnnotationHandler.class) @SuppressWarnings("restriction") public class HandleFieldConstants extends JavacAnnotationHandler<FieldConstants> {
+@ProviderFor(JavacAnnotationHandler.class) @SuppressWarnings("restriction") public class HandleFieldNameConstants extends JavacAnnotationHandler<FieldNameConstants> {
 	
-	public void generateFieldDefaultsForType(JavacNode typeNode, JavacNode errorNode, AccessLevel level, boolean checkForTypeLevelFieldConstants) {
+	public void generateFieldDefaultsForType(JavacNode typeNode, JavacNode errorNode, AccessLevel level, boolean checkForTypeLevelFieldNameConstants) {
 		
-		if (checkForTypeLevelFieldConstants) {
-			if (hasAnnotation(FieldConstants.class, typeNode)) {
+		if (checkForTypeLevelFieldNameConstants) {
+			if (hasAnnotation(FieldNameConstants.class, typeNode)) {
 				return;
 			}
 		}
@@ -41,24 +41,24 @@ import com.sun.tools.javac.util.List;
 		boolean notAClass = (modifiers & (Flags.INTERFACE | Flags.ANNOTATION)) != 0;
 		
 		if (typeDecl == null || notAClass) {
-			errorNode.addError("@FieldConstants is only supported on a class or an enum or a field.");
+			errorNode.addError("@FieldNameConstants is only supported on a class or an enum or a field.");
 			return;
 		}
 		
 		for (JavacNode field : typeNode.down()) {
-			if (fieldQualifiesForFieldConstantsGeneration(field)) generateFieldConstantsForField(field, errorNode.get(), level);
+			if (fieldQualifiesForFieldNameConstantsGeneration(field)) generateFieldNameConstantsForField(field, errorNode.get(), level);
 			
 		}
 	}
 	
-	private void generateFieldConstantsForField(JavacNode fieldNode, DiagnosticPosition pos, AccessLevel level) {
-		if (hasAnnotation(FieldConstants.class, fieldNode)) {
+	private void generateFieldNameConstantsForField(JavacNode fieldNode, DiagnosticPosition pos, AccessLevel level) {
+		if (hasAnnotation(FieldNameConstants.class, fieldNode)) {
 			return;
 		}
-		createFieldConstantsForField(level, fieldNode, fieldNode, false, List.<JCAnnotation>nil());
+		createFieldNameConstantsForField(level, fieldNode, fieldNode, false, List.<JCAnnotation>nil());
 	}
 	
-	private boolean fieldQualifiesForFieldConstantsGeneration(JavacNode field) {
+	private boolean fieldQualifiesForFieldNameConstantsGeneration(JavacNode field) {
 		if (field.getKind() != Kind.FIELD) return false;
 		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
 		if (fieldDecl.name.toString().startsWith("$")) return false;
@@ -66,42 +66,42 @@ import com.sun.tools.javac.util.List;
 		return true;
 	}
 	
-	public void handle(AnnotationValues<FieldConstants> annotation, JCAnnotation ast, JavacNode annotationNode) {
+	public void handle(AnnotationValues<FieldNameConstants> annotation, JCAnnotation ast, JavacNode annotationNode) {
 		
 		Collection<JavacNode> fields = annotationNode.upFromAnnotationToFields();
-		deleteAnnotationIfNeccessary(annotationNode, FieldConstants.class);
+		deleteAnnotationIfNeccessary(annotationNode, FieldNameConstants.class);
 		deleteImportFromCompilationUnit(annotationNode, "lombok.AccessLevel");
 		JavacNode node = annotationNode.up();
-		FieldConstants annotatationInstance = annotation.getInstance();
+		FieldNameConstants annotatationInstance = annotation.getInstance();
 		AccessLevel level = annotatationInstance.level();
 		if (level == AccessLevel.NONE) {
 			annotationNode.addWarning("'lazy' does not work with AccessLevel.NONE.");
 			return;
 		}
 		if (node == null) return;
-		List<JCAnnotation> onMethod = unboxAndRemoveAnnotationParameter(ast, "onMethod", "@FieldConstants(onMethod=", annotationNode);
+		List<JCAnnotation> onMethod = unboxAndRemoveAnnotationParameter(ast, "onMethod", "@FieldNameConstants(onMethod=", annotationNode);
 		switch (node.getKind()) {
 		case FIELD:
-			createFieldConstantsForFields(level, fields, annotationNode, annotationNode, true, onMethod);
+			createFieldNameConstantsForFields(level, fields, annotationNode, annotationNode, true, onMethod);
 			break;
 		case TYPE:
 			if (!onMethod.isEmpty()) {
-				annotationNode.addError("'onMethod' is not supported for @FieldConstants on a type.");
+				annotationNode.addError("'onMethod' is not supported for @FieldNameConstants on a type.");
 			}
 			generateFieldDefaultsForType(node, annotationNode, level, false);
 			break;
 		}
 	}
 	
-	private void createFieldConstantsForFields(AccessLevel level, Collection<JavacNode> fieldNodes, JavacNode annotationNode, JavacNode errorNode, boolean whineIfExists, List<JCAnnotation> onMethod) {
+	private void createFieldNameConstantsForFields(AccessLevel level, Collection<JavacNode> fieldNodes, JavacNode annotationNode, JavacNode errorNode, boolean whineIfExists, List<JCAnnotation> onMethod) {
 		for (JavacNode fieldNode : fieldNodes) {
-			createFieldConstantsForField(level, fieldNode, errorNode, whineIfExists, onMethod);
+			createFieldNameConstantsForField(level, fieldNode, errorNode, whineIfExists, onMethod);
 		}
 	}
 	
-	private void createFieldConstantsForField(AccessLevel level, JavacNode fieldNode, JavacNode source, boolean whineIfExists, List<JCAnnotation> onMethod) {
+	private void createFieldNameConstantsForField(AccessLevel level, JavacNode fieldNode, JavacNode source, boolean whineIfExists, List<JCAnnotation> onMethod) {
 		if (fieldNode.getKind() != Kind.FIELD) {
-			source.addError("@FieldConstants is only supported on a class or a field");
+			source.addError("@FieldNameConstants is only supported on a class or a field");
 			return;
 		}
 		JCVariableDecl field = (JCVariableDecl) fieldNode.get();
