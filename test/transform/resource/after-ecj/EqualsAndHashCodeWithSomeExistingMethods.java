@@ -22,7 +22,7 @@ import static lombok.AccessLevel.NONE;
         return true;
     if ((! (o instanceof EqualsAndHashCodeWithSomeExistingMethods2)))
         return false;
-    final @java.lang.SuppressWarnings("all") EqualsAndHashCodeWithSomeExistingMethods2 other = (EqualsAndHashCodeWithSomeExistingMethods2) o;
+    final EqualsAndHashCodeWithSomeExistingMethods2 other = (EqualsAndHashCodeWithSomeExistingMethods2) o;
     if ((! other.canEqual((java.lang.Object) this)))
         return false;
     if ((this.x != other.x))
@@ -64,7 +64,7 @@ import static lombok.AccessLevel.NONE;
         return true;
     if ((! (o instanceof EqualsAndHashCodeWithNoExistingMethods)))
         return false;
-    final @java.lang.SuppressWarnings("all") EqualsAndHashCodeWithNoExistingMethods other = (EqualsAndHashCodeWithNoExistingMethods) o;
+    final EqualsAndHashCodeWithNoExistingMethods other = (EqualsAndHashCodeWithNoExistingMethods) o;
     if ((! other.canEqual((java.lang.Object) this)))
         return false;
     if ((this.x != other.x))

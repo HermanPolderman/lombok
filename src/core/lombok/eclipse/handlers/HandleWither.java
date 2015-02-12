@@ -127,8 +127,8 @@ public class HandleWither extends EclipseAnnotationHandler<Wither> {
 		AccessLevel level = annotation.getInstance().value();
 		if (level == AccessLevel.NONE || node == null) return;
 		
-		List<Annotation> onMethod = unboxAndRemoveAnnotationParameter(ast, "onMethod", "@Setter(onMethod=", annotationNode);
-		List<Annotation> onParam = unboxAndRemoveAnnotationParameter(ast, "onParam", "@Setter(onParam=", annotationNode);
+		List<Annotation> onMethod = unboxAndRemoveAnnotationParameter(ast, "onMethod", "@Wither(onMethod=", annotationNode);
+		List<Annotation> onParam = unboxAndRemoveAnnotationParameter(ast, "onParam", "@Wither(onParam=", annotationNode);
 		
 		switch (node.getKind()) {
 		case FIELD:
@@ -227,10 +227,7 @@ public class HandleWither extends EclipseAnnotationHandler<Wither> {
 		if (isFieldDeprecated(fieldNode)) {
 			deprecated = new Annotation[] { generateDeprecatedAnnotation(source) };
 		}
-		Annotation[] copiedAnnotations = copyAnnotations(source, onMethod.toArray(new Annotation[0]), deprecated);
-		if (copiedAnnotations.length != 0) {
-			method.annotations = copiedAnnotations;
-		}
+		method.annotations = copyAnnotations(source, onMethod.toArray(new Annotation[0]), deprecated);
 		Argument param = new Argument(field.name, p, copyType(field.type, source), Modifier.FINAL);
 		param.sourceStart = pS; param.sourceEnd = pE;
 		method.arguments = new Argument[] { param };
@@ -283,8 +280,7 @@ public class HandleWither extends EclipseAnnotationHandler<Wither> {
 		
 		method.statements = statements.toArray(new Statement[0]);
 		
-		Annotation[] copiedAnnotationsParam = copyAnnotations(source, nonNulls, nullables, onParam.toArray(new Annotation[0]));
-		if (copiedAnnotationsParam.length != 0) param.annotations = copiedAnnotationsParam;
+		param.annotations = copyAnnotations(source, nonNulls, nullables, onParam.toArray(new Annotation[0]));
 		
 		method.traverse(new SetGeneratedByVisitor(source), parent.scope);
 		return method;

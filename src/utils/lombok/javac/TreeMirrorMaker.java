@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 The Project Lombok Authors.
+ * Copyright (C) 2010-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,11 +26,15 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import static lombok.javac.Javac.*;
+import lombok.javac.JavacTreeMaker.TypeTag;
+
 import com.sun.source.tree.LabeledStatementTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeCopier;
+import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
 /**
@@ -46,7 +50,7 @@ import com.sun.tools.javac.util.List;
 public class TreeMirrorMaker extends TreeCopier<Void> {
 	private final IdentityHashMap<JCTree, JCTree> originalToCopy = new IdentityHashMap<JCTree, JCTree>();
 	
-	public TreeMirrorMaker(JavacTreeMaker maker) {
+	public TreeMirrorMaker(JavacTreeMaker maker, Context context) {
 		super(maker.getUnderlyingTreeMaker());
 	}
 	
@@ -86,11 +90,27 @@ public class TreeMirrorMaker extends TreeCopier<Void> {
 		return Collections.unmodifiableMap(originalToCopy);
 	}
 	
-	// Fix for NPE in HandleVal. See http://code.google.com/p/projectlombok/issues/detail?id=205
-	// Maybe this should be done elsewhere...
+	// Monitor issue 205 and issue 694 when making changes here.
 	@Override public JCTree visitVariable(VariableTree node, Void p) {
+		JCVariableDecl original = node instanceof JCVariableDecl ? (JCVariableDecl) node : null;
 		JCVariableDecl copy = (JCVariableDecl) super.visitVariable(node, p);
-		copy.sym = ((JCVariableDecl) node).sym;
+		if (original == null) return copy;
+		
+		copy.sym = original.sym;
+		if (copy.sym != null) copy.type = original.type;
+		if (copy.type != null) {
+			boolean wipeSymAndType = copy.type.isErroneous();
+			if (!wipeSymAndType) {
+				TypeTag typeTag = TypeTag.typeTag(copy.type);
+				wipeSymAndType = (CTC_NONE.equals(typeTag) || CTC_ERROR.equals(typeTag) || CTC_UNKNOWN.equals(typeTag) || CTC_UNDETVAR.equals(typeTag));
+			}
+			
+			if (wipeSymAndType) {
+				copy.sym = null;
+				copy.type = null;
+			}
+		}
+		
 		return copy;
 	}
 	

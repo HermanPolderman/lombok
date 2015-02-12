@@ -41,7 +41,7 @@
 			<code>lombok.jar</code> includes an ant task which can apply delombok for you. For example, to create javadoc for your project, your <code>build.xml</code> file
 			would look something like:
 			<div class="snippet"><pre>&lt;target name="javadoc"&gt;
-	&lt;taskdef classname="lombok.delombok.ant.DelombokTask" classpath="lib/lombok.jar" name="delombok" /&gt;
+	&lt;taskdef classname="lombok.delombok.ant.Tasks$Delombok" classpath="lib/lombok.jar" name="delombok" /&gt;
 	&lt;mkdir dir="build/src-delomboked" /&gt;
 	<strong>&lt;delombok verbose="true" encoding="UTF-8" to="build/src-delomboked" from="src"&gt;</strong>
 		<strong>&lt;format value="suppressWarnings:skip" /&gt;</strong>
@@ -62,7 +62,7 @@
 		</div>
 		<div class="footer">
 			<a href="index.html">Back to features</a><br />
-			<a href="../credits.html" class="creditsLink">credits</a> | <span class="copyright">Copyright &copy; 2010-2013 The Project Lombok Authors, licensed under the <a href="http://www.opensource.org/licenses/mit-license.php">MIT license</a>.</span>
+			<a href="../credits.html" class="creditsLink">credits</a> | <span class="copyright">Copyright &copy; 2009-2015 The Project Lombok Authors, licensed under the <a href="http://www.opensource.org/licenses/mit-license.php">MIT license</a>.</span>
 		</div>
 		<div style="clear: both;"></div>
 	</div>

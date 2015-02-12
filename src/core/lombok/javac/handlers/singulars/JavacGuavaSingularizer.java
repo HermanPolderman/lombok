@@ -66,7 +66,7 @@ abstract class JavacGuavaSingularizer extends JavacSingularizer {
 		type = addTypeArgs(isMap() ? 2 : 1, false, builderType, type, data.getTypeArgs(), source);
 		
 		JCVariableDecl buildField = maker.VarDef(maker.Modifiers(Flags.PRIVATE), data.getPluralName(), type, null);
-		return Collections.singletonList(injectField(builderType, buildField));
+		return Collections.singletonList(injectFieldAndMarkGenerated(builderType, buildField));
 	}
 	
 	@Override public void generateMethods(SingularData data, JavacNode builderType, JCTree source, boolean fluent, boolean chain) {
@@ -140,7 +140,7 @@ abstract class JavacGuavaSingularizer extends JavacSingularizer {
 		if (mapMode) {
 			paramType = chainDots(builderType, "java", "util", "Map");
 		} else {
-			paramType = chainDots(builderType, "java", "lang", "Iterable");
+			paramType = genJavaLangTypeRef(builderType, "Iterable");
 		}
 		paramType = addTypeArgs(mapMode ? 2 : 1, true, builderType, paramType, data.getTypeArgs(), source);
 		JCVariableDecl param = maker.VarDef(maker.Modifiers(paramFlags), data.getPluralName(), paramType, null);

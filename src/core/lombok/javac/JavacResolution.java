@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 The Project Lombok Authors.
+ * Copyright (C) 2011-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@ package lombok.javac;
 import static lombok.javac.Javac.*;
 import static lombok.javac.JavacTreeMaker.TypeTag.typeTag;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
@@ -32,6 +33,7 @@ import java.util.Map;
 import javax.lang.model.type.TypeKind;
 
 import lombok.Lombok;
+import lombok.core.debug.AssertionLogger;
 
 import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
@@ -98,7 +100,7 @@ public class JavacResolution {
 		
 		@Override public void visitClassDef(JCClassDecl tree) {
 			if (copyAt != null) return;
-			env = enter.getClassEnv(tree.sym);
+			if (tree.sym != null) env = enter.getClassEnv(tree.sym);
 		}
 		
 		@Override public void visitMethodDef(JCMethodDecl tree) {
@@ -138,14 +140,63 @@ public class JavacResolution {
 			EnvFinder finder = new EnvFinder(node.getContext());
 			while (!stack.isEmpty()) stack.pop().accept(finder);
 			
-			TreeMirrorMaker mirrorMaker = new TreeMirrorMaker(node.getTreeMaker());
+			TreeMirrorMaker mirrorMaker = new TreeMirrorMaker(node.getTreeMaker(), node.getContext());
 			JCTree copy = mirrorMaker.copy(finder.copyAt());
 			
-			attrib(copy, finder.get());
+			memberEnterAndAttribute(copy, finder.get(), node.getContext());
 			return mirrorMaker.getOriginalToCopyMap();
 		} finally {
 			messageSuppressor.enableLoggers();
 		}
+	}
+	
+	private static Field memberEnterDotEnv;
+	
+	private static Field getMemberEnterDotEnv() {
+		if (memberEnterDotEnv != null) return memberEnterDotEnv;
+		try {
+			Field f = MemberEnter.class.getDeclaredField("env");
+			f.setAccessible(true);
+			memberEnterDotEnv = f;
+		} catch (NoSuchFieldException e) {
+			return null;
+		}
+		
+		return memberEnterDotEnv;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static Env<AttrContext> getEnvOfMemberEnter(MemberEnter memberEnter) {
+		Field f = getMemberEnterDotEnv();
+		try {
+			return (Env<AttrContext>) f.get(memberEnter);
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	
+	private static void setEnvOfMemberEnter(MemberEnter memberEnter, Env<AttrContext> env) {
+		Field f = getMemberEnterDotEnv();
+		try {
+			f.set(memberEnter, env);
+		} catch (Exception e) {
+			return;
+		}
+	}
+	
+	private void memberEnterAndAttribute(JCTree copy, Env<AttrContext> env, Context context) {
+		MemberEnter memberEnter = MemberEnter.instance(context);
+		Env<AttrContext> oldEnv = getEnvOfMemberEnter(memberEnter);
+		setEnvOfMemberEnter(memberEnter, env);
+		try {
+			copy.accept(memberEnter);
+		} catch (Exception ignore) {
+			// intentionally ignored; usually even if this step fails, val will work (but not for val in method local inner classes and anonymous inner classes).
+			AssertionLogger.assertLog("member enter failed.", ignore);
+		} finally {
+			setEnvOfMemberEnter(memberEnter, oldEnv);
+		}
+		attrib(copy, env);
 	}
 	
 	public void resolveClassMember(JavacNode node) {
@@ -241,7 +292,7 @@ public class JavacResolution {
 		Type type0 = type;
 		while (type0 instanceof ArrayType) {
 			dims++;
-			type0 = ((ArrayType)type0).elemtype;
+			type0 = ((ArrayType) type0).elemtype;
 		}
 		
 		JCExpression result = typeToJCTree0(type0, ast, allowCompound, allowVoid);

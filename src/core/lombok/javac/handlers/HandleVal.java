@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 The Project Lombok Authors.
+ * Copyright (C) 2010-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,7 @@ import lombok.javac.ResolutionResetNeeded;
 import org.mangosdk.spi.ProviderFor;
 
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
@@ -110,6 +111,16 @@ public class HandleVal extends JavacASTAdapter {
 					}
 				} else {
 					type = local.init.type;
+					if (type.isErroneous()) {
+						try {
+							JavacResolution resolver = new JavacResolution(localNode.getContext());
+							local.type = Symtab.instance(localNode.getContext()).unknownType;
+							type = ((JCExpression) resolver.resolveMethodMember(localNode).get(local.init)).type;
+						} catch (RuntimeException e) {
+							System.err.println("Exception while resolving: " + localNode);
+							throw e;
+						}
+					}
 				}
 			} else {
 				if (rhsOfEnhancedForLoop.type == null) {

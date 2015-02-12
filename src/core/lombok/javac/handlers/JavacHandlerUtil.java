@@ -69,7 +69,6 @@ import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.tree.JCTree.JCImport;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCModifiers;
@@ -818,8 +817,8 @@ public class JavacHandlerUtil {
 	 * The field carries the &#64;{@link SuppressWarnings}("all") annotation.
 	 * Also takes care of updating the JavacAST.
 	 */
-	public static void injectFieldSuppressWarnings(JavacNode typeNode, JCVariableDecl field) {
-		injectField(typeNode, field, true);
+	public static JavacNode injectFieldAndMarkGenerated(JavacNode typeNode, JCVariableDecl field) {
+		return injectField(typeNode, field, true);
 	}
 	
 	/**
@@ -831,10 +830,13 @@ public class JavacHandlerUtil {
 		return injectField(typeNode, field, false);
 	}
 
-	private static JavacNode injectField(JavacNode typeNode, JCVariableDecl field, boolean addSuppressWarnings) {
+	private static JavacNode injectField(JavacNode typeNode, JCVariableDecl field, boolean addGenerated) {
 		JCClassDecl type = (JCClassDecl) typeNode.get();
 		
-		if (addSuppressWarnings) addSuppressWarningsAll(field.mods, typeNode, field.pos, getGeneratedBy(field), typeNode.getContext());
+		if (addGenerated) {
+			addSuppressWarningsAll(field.mods, typeNode, field.pos, getGeneratedBy(field), typeNode.getContext());
+			addGenerated(field.mods, typeNode, field.pos, getGeneratedBy(field), typeNode.getContext());
+		}
 		
 		List<JCTree> insertAfter = null;
 		List<JCTree> insertBefore = type.defs;
@@ -893,6 +895,7 @@ public class JavacHandlerUtil {
 		}
 		
 		addSuppressWarningsAll(method.mods, typeNode, method.pos, getGeneratedBy(method), typeNode.getContext());
+		addGenerated(method.mods, typeNode, method.pos, getGeneratedBy(method), typeNode.getContext());
 		type.defs = type.defs.append(method);
 		
 		typeNode.add(method, Kind.METHOD);
@@ -908,6 +911,7 @@ public class JavacHandlerUtil {
 	public static JavacNode injectType(JavacNode typeNode, final JCClassDecl type) {
 		JCClassDecl typeDecl = (JCClassDecl) typeNode.get();
 		addSuppressWarningsAll(type.mods, typeNode, type.pos, getGeneratedBy(type), typeNode.getContext());
+		addGenerated(type.mods, typeNode, type.pos, getGeneratedBy(type), typeNode.getContext());
 		typeDecl.defs = typeDecl.defs.append(type);
 		return typeNode.add(type, Kind.TYPE);
 	}
@@ -948,20 +952,52 @@ public class JavacHandlerUtil {
 	
 	public static void addSuppressWarningsAll(JCModifiers mods, JavacNode node, int pos, JCTree source, Context context) {
 		if (!LombokOptionsFactory.getDelombokOptions(context).getFormatPreferences().generateSuppressWarnings()) return;
+		addAnnotation(mods, node, pos, source, context, "java.lang.SuppressWarnings", node.getTreeMaker().Literal("all"));
+		
+		if (Boolean.TRUE.equals(node.getAst().readConfiguration(ConfigurationKeys.ADD_FINDBUGS_SUPPRESSWARNINGS_ANNOTATIONS))) {
+			JavacTreeMaker maker = node.getTreeMaker();
+			JCExpression arg = maker.Assign(maker.Ident(node.toName("justification")), maker.Literal("generated code"));
+			addAnnotation(mods, node, pos, source, context, "edu.umd.cs.findbugs.annotations.SuppressFBWarnings", arg);
+		}
+	}
+	
+	public static void addGenerated(JCModifiers mods, JavacNode node, int pos, JCTree source, Context context) {
+		if (!LombokOptionsFactory.getDelombokOptions(context).getFormatPreferences().generateGenerated()) return;
+		
+		if (!Boolean.FALSE.equals(node.getAst().readConfiguration(ConfigurationKeys.ADD_GENERATED_ANNOTATIONS))) {
+			addAnnotation(mods, node, pos, source, context, "javax.annotation.Generated", node.getTreeMaker().Literal("lombok"));
+		}
+	}
+	
+	private static void addAnnotation(JCModifiers mods, JavacNode node, int pos, JCTree source, Context context, String annotationTypeFqn, JCExpression arg) {
+		boolean isJavaLangBased;
+		String simpleName; {
+			int idx = annotationTypeFqn.lastIndexOf('.');
+			simpleName = idx == -1 ? annotationTypeFqn : annotationTypeFqn.substring(idx + 1);
+			
+			isJavaLangBased = idx == 9 && annotationTypeFqn.regionMatches(0, "java.lang.", 0, 10);
+		}
+		
 		for (JCAnnotation ann : mods.annotations) {
 			JCTree annType = ann.getAnnotationType();
 			Name lastPart = null;
 			if (annType instanceof JCIdent) lastPart = ((JCIdent) annType).name;
 			else if (annType instanceof JCFieldAccess) lastPart = ((JCFieldAccess) annType).name;
 			
-			if (lastPart != null && lastPart.contentEquals("SuppressWarnings")) return;
+			if (lastPart != null && lastPart.contentEquals(simpleName)) return;
 		}
 		JavacTreeMaker maker = node.getTreeMaker();
-		JCExpression suppressWarningsType = genJavaLangTypeRef(node, "SuppressWarnings");
-		JCLiteral allLiteral = maker.Literal("all");
-		suppressWarningsType.pos = pos;
-		allLiteral.pos = pos;
-		JCAnnotation annotation = recursiveSetGeneratedBy(maker.Annotation(suppressWarningsType, List.<JCExpression>of(allLiteral)), source, context);
+		JCExpression annType = isJavaLangBased ? genJavaLangTypeRef(node, simpleName) : chainDotsString(node, annotationTypeFqn);
+		annType.pos = pos;
+		if (arg != null) {
+			arg.pos = pos;
+			if (arg instanceof JCAssign) {
+				((JCAssign) arg).lhs.pos = pos;
+				((JCAssign) arg).rhs.pos = pos;
+			}
+		}
+		List<JCExpression> argList = arg != null ? List.of(arg) : List.<JCExpression>nil();
+		JCAnnotation annotation = recursiveSetGeneratedBy(maker.Annotation(annType, argList), source, context);
 		annotation.pos = pos;
 		mods.annotations = mods.annotations.append(annotation);
 	}

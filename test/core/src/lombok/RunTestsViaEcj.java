@@ -93,7 +93,7 @@ public class RunTestsViaEcj extends AbstractRunTests {
 	}
 	
 	@Override
-	public void transformCode(Collection<CompilerMessage> messages, StringWriter result, File file, String encoding) throws Throwable {
+	public void transformCode(Collection<CompilerMessage> messages, StringWriter result, File file, String encoding, Map<String, String> formatPreferences) throws Throwable {
 		final AtomicReference<CompilationResult> compilationResult_ = new AtomicReference<CompilationResult>();
 		final AtomicReference<CompilationUnitDeclaration> compilationUnit_ = new AtomicReference<CompilationUnitDeclaration>();
 		ICompilerRequestor bitbucketRequestor = new ICompilerRequestor() {
@@ -143,6 +143,7 @@ public class RunTestsViaEcj extends AbstractRunTests {
 		classpath.add("lib/test/log4j-log4j.jar");
 		classpath.add("lib/test/org.apache.logging.log4j-log4j-api.jar");
 		classpath.add("lib/test/com.google.guava-guava.jar");
+		classpath.add("lib/test/com.google.code.findbugs-findbugs.jar");
 		return new FileSystem(classpath.toArray(new String[0]), new String[] {file.getAbsolutePath()}, "UTF-8");
 	}
 }
