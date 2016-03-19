@@ -24,7 +24,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 
-@ProviderFor(JavacAnnotationHandler.class) @SuppressWarnings("restriction") public class HandleFieldConstants extends JavacAnnotationHandler<FieldNameConstants> {
+@ProviderFor(JavacAnnotationHandler.class) @SuppressWarnings("restriction") public class HandleFieldNameConstants extends JavacAnnotationHandler<FieldNameConstants> {
 	
 	public void generateFieldDefaultsForType(JavacNode typeNode, JavacNode errorNode, AccessLevel level, boolean checkForTypeLevelFieldNameConstants) {
 		
